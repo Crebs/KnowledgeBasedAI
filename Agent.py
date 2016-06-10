@@ -90,15 +90,18 @@ class SemNet:
         return nodeSet
 
     def matchObjectsFrom(self, nodeSet, toNodeSet):
-        addedNode = {}
+        addedNode = self.findUnchangedTransitionEdges(nodeSet, toNodeSet)
         for nodeName in nodeSet.nodes:
+            if nodeName in addedNode:
+                continue
             node = nodeSet.nodes[nodeName]
             for matchNodeName in toNodeSet.nodes:
-                matchNode = toNodeSet.nodes[matchNodeName]
-                if node.sameObject(matchNode):
-                    addedNode[matchNodeName] = matchNode
-                    addedNode[nodeName] = node
-                    node.addEdges(matchNode.edges)
+                if nodeName not in addedNode:
+                    matchNode = toNodeSet.nodes[matchNodeName]
+                    if node.sameObject(matchNode):
+                        addedNode[matchNodeName] = matchNode
+                        addedNode[nodeName] = node
+                        node.addEdges(matchNode.edges)
             if nodeName not in addedNode:
                 edge = Edge("unchanged", node)
                 node.addEdge(edge)
@@ -201,7 +204,7 @@ class Node:
 
     def exactSameAttributes(self, otherNode):
         for attribute in self.attributes:
-            if attribute != "inside":
+            if attribute != "inside" and attribute != "above":
                 if self.sameAttribute(attribute, otherNode) == False:
                     return False
         return True
@@ -284,9 +287,11 @@ class Agent:
         figures = problem.figures
         figureA = figures["A"]
         figureB = figures["B"]
-        semnetAtoB = SemNet(figureA, figureB)
-
         figureC = figures["C"]
+        semnetAtoB = SemNet(figureA, figureB)
+        semnetAtoC = SemNet(figureA, figureC)
+
+
         semnetCto1 = SemNet(figureC, figures["1"])
         semnetCto2 = SemNet(figureC, figures["2"])
         semnetCto3 = SemNet(figureC, figures["3"])
@@ -294,16 +299,43 @@ class Agent:
         semnetCto5 = SemNet(figureC, figures["5"])
         semnetCto6 = SemNet(figureC, figures["6"])
 
-        possibleAnswers = {1:semnetCto1, 2:semnetCto2, 3:semnetCto3,
-                           4:semnetCto4, 5:semnetCto5, 6:semnetCto6}
+        semnetBto1 = SemNet(figureB, figures["1"])
+        semnetBto2 = SemNet(figureB, figures["2"])
+        semnetBto3 = SemNet(figureB, figures["3"])
+        semnetBto4 = SemNet(figureB, figures["4"])
+        semnetBto5 = SemNet(figureB, figures["5"])
+        semnetBto6 = SemNet(figureB, figures["6"])
 
-        answer = semnetAtoB.findAnswerFrom(possibleAnswers)
+        possibleAnswersC = {1:semnetCto1,
+                            2:semnetCto2,
+                            3:semnetCto3,
+                            4:semnetCto4,
+                            5:semnetCto5,
+                            6:semnetCto6}
+
+        possibleAnswersB = {1:semnetBto1,
+                            2:semnetBto2,
+                            3:semnetBto3,
+                            4:semnetBto4,
+                            5:semnetBto5,
+                            6:semnetBto6}
+
+
+        answer = possibleAnswersC #semnetAtoB.findAnswerFrom(possibleAnswersC)
+
         if len(answer) > 1 or len(answer) == 0:
-            expectNodeSet = semnetAtoB.fromFigure(figureC)
-            for key in possibleAnswers.copy():
-                if expectNodeSet.compare(possibleAnswers[key].fromSet) == False:
-                    if key in possibleAnswers: del possibleAnswers[key]
-            answer = possibleAnswers
+            answer = possibleAnswersC
+            expectNodeSetFromC = semnetAtoB.fromFigure(figureC)
+            expectNodeSetFromB = semnetAtoC.fromFigure(figureB)
+            for key in answer.copy():
+                possibleAnswer = answer[key]
+                if expectNodeSetFromC.compare(possibleAnswer.fromSet) == False:
+                    if key in answer: del answer[key]
+
+            if len(answer) > 1:
+                for key in answer.copy():
+                    if expectNodeSetFromB.compare(possibleAnswersB[key].fromSet) == False:
+                        if key in answer: del answer[key]
 
 
         if len(answer) > 1 or len(answer) == 0:
